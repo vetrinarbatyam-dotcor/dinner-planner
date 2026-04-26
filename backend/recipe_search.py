@@ -1,9 +1,16 @@
 import os, json, re
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _client
 
 BUDGET_MAP = {"cheap": "זול (עד ₪30 למנה)", "medium": "בינוני (₪30-₪80 למנה)", "expensive": "יקר (₪80+ למנה)"}
 DIFFICULTY_MAP = {"easy": "קל", "medium": "בינוני", "hard": "מאתגר"}
@@ -55,34 +62,29 @@ def search_recipes(
 
 תן לי בדיוק {n_options} מתכונים שונים ומגוונים לـ{course_name}.
 
-עבור כל מתכון תחזיר JSON תקין בלבד (ללא markdown, ללא ```):
+החזר JSON תקין בלבד (ללא markdown, ללא ```, ללא שום טקסט לפני או אחרי):
 [
   {{
     "name": "שם המנה בעברית",
-    "name_en": "Dish name in English",
-    "chef_or_source": "שם השף או המקור (אתר/פרסום)",
-    "source_url": "כתובת URL למתכון או לדף המקור (אמיתי ומדויק ככל האפשר)",
-    "prep_time": "זמן הכנה + בישול (לדוגמה: 45 דקות)",
+    "chef_or_source": "שם השף או המקור",
+    "source_url": "URL אמיתי למתכון",
+    "prep_time": "זמן הכנה (לדוגמה: 45 דקות)",
     "difficulty": "קל/בינוני/מאתגר",
-    "cost_per_person": "עלות משוערת למנה בשקלים (מספר בלבד)",
+    "cost_per_person": 45,
     "main_ingredients": ["מרכיב1", "מרכיב2", "מרכיב3"],
     "all_ingredients": [
-      {{"name": "שם המרכיב", "quantity": "כמות ל-{participants} סועדים", "unit": "יחידת מידה", "category": "ירקות/בשר/דגים/חלב/יבשים/תבלינים/שמנים/אחר"}}
+      {{"name": "שם המרכיב", "quantity": "כמות ל-{participants} סועדים", "unit": "יחידה", "category": "ירקות/בשר/דגים/חלב/יבשים/תבלינים/שמנים/אחר"}}
     ],
-    "short_description": "תיאור קצר ומפתה של המנה (2 משפטים)",
-    "cooking_steps_summary": "3-4 שלבי בישול עיקריים בתמצית"
+    "short_description": "תיאור קצר ומפתה (2 משפטים)",
+    "cooking_steps_summary": "3-4 שלבים עיקריים"
   }}
-]
+]"""
 
-חשוב:
-- הצע מגוון אמיתי — לא כולם אותו סגנון
-- התאם לתקציב ולרמת הקושי שנבחרו
-- כמויות המרכיבים — ל-{participants} סועדים בדיוק
-- כתובות URL — נסה להיות מדויק לאתרים אמיתיים (mako.co.il, walla.co.il, jamieoliver.com וכד')
-- החזר JSON תקין בלבד, ללא שום טקסט נוסף"""
-
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    resp = model.generate_content(prompt)
+    client = get_client()
+    resp = client.models.generate_content(
+        model="gemini-2.0-flash-lite",
+        contents=prompt,
+    )
     raw = resp.text.strip()
 
     raw = re.sub(r"^```(?:json)?", "", raw).strip()
@@ -94,5 +96,8 @@ def search_recipes(
     except json.JSONDecodeError:
         match = re.search(r"\[.*\]", raw, re.DOTALL)
         if match:
-            return json.loads(match.group())
+            try:
+                return json.loads(match.group())
+            except Exception:
+                pass
         return []
