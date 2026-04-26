@@ -43,6 +43,9 @@ class SearchRequest(BaseModel):
     difficulty: str
     budget: str
     occasion: str = ""
+    cuisines: list[str] = []
+    diet: str = ""
+    custom_theme: str = ""
     sources: dict
     courses: list[CourseRequest]
 
@@ -93,6 +96,9 @@ async def api_search_recipes(req: SearchRequest):
             budget=req.budget,
             sources=req.sources,
             occasion=req.occasion,
+            cuisines=req.cuisines,
+            diet=req.diet,
+            custom_theme=req.custom_theme,
         )
         results[course.course_type] = recipes
     return {"results": results}

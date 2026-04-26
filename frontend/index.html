@@ -80,6 +80,25 @@ const COURSE_TYPES = [
   {id:"dessert",name:"קינוח",emoji:"🍰"},
   {id:"drinks",name:"שתייה",emoji:"🍹"},
 ];
+const CUISINES = [
+  {id:"israeli",    label:"ישראלי",    emoji:"🇮🇱"},
+  {id:"italian",    label:"איטלקי",    emoji:"🍝"},
+  {id:"asian",      label:"אסייתי",    emoji:"🥢"},
+  {id:"greek",      label:"יווני",     emoji:"🫒"},
+  {id:"american",   label:"אמריקאי",   emoji:"🍔"},
+  {id:"french",     label:"צרפתי",     emoji:"🥐"},
+  {id:"middle_east",label:"מזרח-תיכוני",emoji:"🧆"},
+  {id:"indian",     label:"הודי",      emoji:"🍛"},
+  {id:"mexican",    label:"מקסיקאי",   emoji:"🌮"},
+  {id:"spanish",    label:"ספרדי",     emoji:"🥘"},
+];
+const DIETS = [
+  {id:"",           label:"ללא הגבלה", emoji:"🍽️"},
+  {id:"vegetarian", label:"צמחוני",    emoji:"🥦"},
+  {id:"vegan",      label:"טבעוני",    emoji:"🌱"},
+  {id:"glutenfree", label:"ללא גלוטן", emoji:"🌾"},
+  {id:"kosher",     label:"כשר",       emoji:"✡️"},
+];
 const STEP_LABELS = ["פרטים","תקציב","מקורות","בניית תפריט","בחירת מתכונים","סיכום","שליחה"];
 
 // ─── COMPONENTS ─────────────────────────────────────────────────────
@@ -134,6 +153,48 @@ function Step1({data, onChange}) {
       <div>
         <label className="block text-lg font-bold text-gray-700 mb-3">🎭 סגנון הארוחה</label>
         <OptionGrid options={STYLES} selected={data.style} onSelect={v=>onChange({...data,style:v})}/>
+      </div>
+      <div>
+        <label className="block text-lg font-bold text-gray-700 mb-3">🌍 סגנון מטבח</label>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          {CUISINES.map(c=>{
+            const isSel = (data.cuisines||[]).includes(c.id);
+            return (
+              <div key={c.id} className={`option-card text-center py-2 ${isSel?"selected":""}`}
+                onClick={()=>{
+                  const cur = data.cuisines||[];
+                  onChange({...data, cuisines: isSel ? cur.filter(x=>x!==c.id) : [...cur,c.id]});
+                }}>
+                <div className="text-xl mb-0.5">{c.emoji}</div>
+                <div className="text-sm font-bold text-gray-800">{c.label}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-3">
+          <input
+            type="text"
+            placeholder="✏️ נושא חופשי — לדוגמה: מזרח אירופה, פיוז&#39;ן, ים-תיכוני..."
+            value={data.custom_theme||""}
+            onChange={e=>onChange({...data,custom_theme:e.target.value})}
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400 transition-colors"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-lg font-bold text-gray-700 mb-3">🥗 העדפות תזונה</label>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          {DIETS.map(d=>{
+            const isSel = (data.diet||"") === d.id;
+            return (
+              <div key={d.id||"none"} className={`option-card text-center py-2 ${isSel?"selected":""}`}
+                onClick={()=>onChange({...data,diet:isSel?"":d.id})}>
+                <div className="text-xl mb-0.5">{d.emoji}</div>
+                <div className="text-sm font-bold text-gray-800">{d.label}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div>
         <label className="block text-lg font-bold text-gray-700 mb-3">🔥 רמת קושי</label>
@@ -431,7 +492,7 @@ function Step7({sendData, onChange, onSend, sending, sentResult}) {
 function App() {
   const [step, setStep] = useState(0);
   const [config, setConfig] = useState({});
-  const [basics, setBasics] = useState({participants:6, style:"shabbat", difficulty:"medium"});
+  const [basics, setBasics] = useState({participants:6, style:"shabbat", difficulty:"medium", cuisines:[], diet:"", custom_theme:""});
   const [budgetData, setBudgetData] = useState({budget:"medium"});
   const [sourcesData, setSourcesData] = useState({sources:{social:[],israeli_chefs:[],international_chefs:[],hebrew_sites:[]}});
   const [coursesData, setCoursesData] = useState({selectedCourses:[]});
@@ -471,6 +532,9 @@ function App() {
           difficulty: basics.difficulty,
           budget: budgetData.budget,
           occasion: basics.style,
+          cuisines: basics.cuisines||[],
+          diet: basics.diet||"",
+          custom_theme: basics.custom_theme||"",
           sources: sourcesData.sources,
           courses: coursesData.selectedCourses.map(c=>({
             course_type: c.id, course_name: c.name, n_options: c.n_options||3

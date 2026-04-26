@@ -18,6 +18,17 @@ STYLE_MAP = {
     "daily": "יומיומי", "shabbat": "שבתי", "festive": "חגיגי",
     "fancy": "מפואר", "holiday": "חג", "birthday": "יום הולדת", "business": "עסקי"
 }
+CUISINE_MAP = {
+    "israeli": "ישראלי", "italian": "איטלקי", "asian": "אסייתי",
+    "greek": "יווני", "american": "אמריקאי", "french": "צרפתי",
+    "middle_east": "מזרח-תיכוני", "indian": "הודי", "mexican": "מקסיקאי", "spanish": "ספרדי",
+}
+DIET_MAP = {
+    "vegetarian": "צמחוני (ללא בשר ודגים)",
+    "vegan": "טבעוני (ללא כל מוצרי חי)",
+    "glutenfree": "ללא גלוטן",
+    "kosher": "כשר",
+}
 
 
 def build_source_description(sources: dict) -> str:
@@ -43,11 +54,20 @@ def search_recipes(
     budget: str,
     sources: dict,
     occasion: str = "",
+    cuisines: list = None,
+    diet: str = "",
+    custom_theme: str = "",
 ) -> list[dict]:
     source_desc = build_source_description(sources)
     budget_heb = BUDGET_MAP.get(budget, budget)
     difficulty_heb = DIFFICULTY_MAP.get(difficulty, difficulty)
     style_heb = STYLE_MAP.get(style, style)
+
+    cuisine_parts = [CUISINE_MAP.get(c, c) for c in (cuisines or [])]
+    cuisine_line = f"- סגנון מטבח: {', '.join(cuisine_parts)}" if cuisine_parts else ""
+    if custom_theme:
+        cuisine_line += f"{' | ' if cuisine_line else '- נושא: '}{custom_theme}"
+    diet_line = f"- העדפת תזונה: {DIET_MAP.get(diet, '')} ⚠️ חובה לעמוד בדרישה זו!" if diet else ""
 
     prompt = f"""אתה מומחה קולינרי ישראלי. תפקידך להמליץ על מתכונים אמיתיים לארוחת ערב.
 
@@ -58,6 +78,8 @@ def search_recipes(
 - אירוע: {occasion or style_heb}
 - קושי: {difficulty_heb}
 - תקציב: {budget_heb}
+{cuisine_line}
+{diet_line}
 - מקורות מועדפים: {source_desc}
 
 תן לי בדיוק {n_options} מתכונים שונים ומגוונים לـ{course_name}.
