@@ -81,7 +81,7 @@ def search_recipes(
 - כתובות URL — נסה להיות מדויק לאתרים אמיתיים (mako.co.il, walla.co.il, jamieoliver.com וכד')
 - החזר JSON תקין בלבד, ללא שום טקסט נוסף"""
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
     resp = model.generate_content(prompt)
     raw = resp.text.strip()
 
