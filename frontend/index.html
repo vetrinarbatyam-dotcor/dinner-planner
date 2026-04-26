@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>מתכנן ארוחת ערב 🍽️</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
+  * { font-family: 'Heebo', sans-serif; }
+  body { background: linear-gradient(135deg,#1a0a00 0%,#3d1a00 50%,#1a0a00 100%); min-height: 100vh; }
+  .card { background: rgba(255,255,255,0.97); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .btn-primary { background: linear-gradient(135deg,#b5451b,#d4622a); color: white; border-radius: 12px; padding: 12px 28px; font-weight: 700; font-size: 16px; transition: all 0.2s; cursor: pointer; border: none; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(181,69,27,0.4); }
+  .btn-secondary { background: #f3f4f6; color: #374151; border-radius: 12px; padding: 12px 28px; font-weight: 600; font-size: 16px; transition: all 0.2s; cursor: pointer; border: none; }
+  .btn-secondary:hover { background: #e5e7eb; }
+  .option-card { border: 2px solid #e5e7eb; border-radius: 14px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+  .option-card:hover { border-color: #b5451b; background: #fff8f5; }
+  .option-card.selected { border-color: #b5451b; background: #fff3ee; }
+  .recipe-card { border: 2px solid #e5e7eb; border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
+  .recipe-card:hover { border-color: #b5451b; box-shadow: 0 4px 16px rgba(181,69,27,0.15); }
+  .recipe-card.selected { border-color: #b5451b; background: #fff8f5; }
+  .recipe-card .check { position: absolute; top: 12px; left: 12px; width: 28px; height: 28px; border-radius: 50%; background: #b5451b; color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg,#b5451b,#d4622a); border-radius: 3px; transition: width 0.4s ease; }
+  .step-badge { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+  .step-badge.done { background: #b5451b; color: white; }
+  .step-badge.active { background: #fff3ee; border: 2px solid #b5451b; color: #b5451b; }
+  .step-badge.pending { background: #f3f4f6; color: #9ca3af; }
+  .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #b5451b; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .tag { display: inline-block; background: #fff0e8; color: #b5451b; border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 500; margin: 2px; }
+  .ingredient-cat { background: #f9fafb; border-radius: 10px; padding: 12px 16px; margin: 8px 0; }
+  input[type=range] { accent-color: #b5451b; }
+  .source-checkbox { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+  .source-checkbox:hover { border-color: #b5451b; background: #fff8f5; }
+  .source-checkbox.checked { border-color: #b5451b; background: #fff3ee; }
+  .chef-chip { border: 2px solid #e5e7eb; border-radius: 24px; padding: 6px 16px; cursor: pointer; font-size: 14px; transition: all 0.15s; display: inline-block; margin: 4px; }
+  .chef-chip.selected { border-color: #b5451b; background: #fff3ee; color: #b5451b; font-weight: 600; }
+  .num-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #b5451b; color: #b5451b; background: white; cursor: pointer; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .num-btn:hover { background: #b5451b; color: white; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+const API = "";
+
+// ─── DATA ───────────────────────────────────────────────────────────
+const STYLES = [
+  {id:"daily",label:"יומיומי",emoji:"🏠"},
+  {id:"shabbat",label:"שבתי",emoji:"🕯️"},
+  {id:"holiday",label:"חג",emoji:"✡️"},
+  {id:"festive",label:"חגיגי",emoji:"🎉"},
+  {id:"fancy",label:"מפואר",emoji:"👑"},
+  {id:"birthday",label:"יום הולדת",emoji:"🎂"},
+  {id:"business",label:"עסקי",emoji:"💼"},
+];
+const DIFFICULTIES = [
+  {id:"easy",label:"קל",desc:"עד שעה",emoji:"😊"},
+  {id:"medium",label:"בינוני",desc:"1-2 שעות",emoji:"🤔"},
+  {id:"hard",label:"מאתגר",desc:"מסעדה בבית",emoji:"👨‍🍳"},
+];
+const BUDGETS = [
+  {id:"cheap",label:"זול",desc:"עד ₪30 למנה",emoji:"💚"},
+  {id:"medium",label:"בינוני",desc:"₪30–₪80 למנה",emoji:"💛"},
+  {id:"expensive",label:"יקר",desc:"₪80+ למנה",emoji:"💎"},
+];
+const COURSE_TYPES = [
+  {id:"cocktail",name:"כוסית / קוקטייל",emoji:"🥂"},
+  {id:"salad",name:"סלט",emoji:"🥗"},
+  {id:"soup",name:"מרק",emoji:"🍲"},
+  {id:"starter",name:"מנה ראשונה",emoji:"🥙"},
+  {id:"main",name:"מנה עיקרית",emoji:"🍖"},
+  {id:"side",name:"תוספת",emoji:"🥔"},
+  {id:"dessert",name:"קינוח",emoji:"🍰"},
+  {id:"drinks",name:"שתייה",emoji:"🍹"},
+];
+const STEP_LABELS = ["פרטים","תקציב","מקורות","בניית תפריט","בחירת מתכונים","סיכום","שליחה"];
+
+// ─── COMPONENTS ─────────────────────────────────────────────────────
+function ProgressBar({step}) {
+  return (
+    <div className="mb-8">
+      <div className="flex justify-between mb-3">
+        {STEP_LABELS.map((l,i)=>(
+          <div key={i} className="flex flex-col items-center gap-1" style={{flex:1}}>
+            <div className={`step-badge ${i<step?"done":i===step?"active":"pending"}`}>
+              {i<step?"✓":i+1}
+            </div>
+            <span className="text-xs text-gray-500 hidden md:block">{l}</span>
+          </div>
+        ))}
+      </div>
+      <div className="progress-bar">
+        <div className="progress-fill" style={{width:`${(step/6)*100}%`}}/>
+      </div>
+    </div>
+  );
+}
+
+function OptionGrid({options, selected, onSelect, multi=false}) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {options.map(o=>{
+        const isSelected = multi ? (selected||[]).includes(o.id) : selected===o.id;
+        return (
+          <div key={o.id} className={`option-card text-center ${isSelected?"selected":""}`} onClick={()=>onSelect(o.id)}>
+            <div className="text-2xl mb-1">{o.emoji||o.icon||""}</div>
+            <div className="font-bold text-gray-800">{o.label||o.name}</div>
+            {o.desc && <div className="text-xs text-gray-500 mt-1">{o.desc}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── STEP 1: Basics ─────────────────────────────────────────────────
+function Step1({data, onChange}) {
+  return (
+    <div className="space-y-8">
+      <div>
+        <label className="block text-lg font-bold text-gray-700 mb-3">👥 מספר סועדים: <span className="text-orange-600 text-2xl">{data.participants}</span></label>
+        <input type="range" min="1" max="30" value={data.participants}
+          onChange={e=>onChange({...data,participants:+e.target.value})}
+          className="w-full h-2 rounded-lg appearance-none cursor-pointer"/>
+        <div className="flex justify-between text-xs text-gray-400 mt-1"><span>1</span><span>15</span><span>30</span></div>
+      </div>
+      <div>
+        <label className="block text-lg font-bold text-gray-700 mb-3">🎭 סגנון הארוחה</label>
+        <OptionGrid options={STYLES} selected={data.style} onSelect={v=>onChange({...data,style:v})}/>
+      </div>
+      <div>
+        <label className="block text-lg font-bold text-gray-700 mb-3">🔥 רמת קושי</label>
+        <OptionGrid options={DIFFICULTIES} selected={data.difficulty} onSelect={v=>onChange({...data,difficulty:v})}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── STEP 2: Budget ─────────────────────────────────────────────────
+function Step2({data, onChange, participants}) {
+  const costMap = {cheap:30,medium:65,expensive:120};
+  const estimated = (costMap[data.budget]||65) * participants;
+  return (
+    <div className="space-y-6">
+      <OptionGrid options={BUDGETS} selected={data.budget} onSelect={v=>onChange({...data,budget:v})}/>
+      {data.budget && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+          <div className="text-gray-600 text-sm">עלות ארוחה משוערת לـ{participants} סועדים</div>
+          <div className="text-3xl font-black text-orange-600 mt-1">~₪{estimated.toLocaleString()}</div>
+          <div className="text-xs text-gray-400">(תלוי במספר המנות הסופי)</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── STEP 3: Sources ────────────────────────────────────────────────
+function Step3({data, onChange, config}) {
+  const {sources} = data;
+  const toggleSocial = (id) => {
+    const cur = sources.social||[];
+    onChange({...data,sources:{...sources,social:cur.includes(id)?cur.filter(x=>x!==id):[...cur,id]}});
+  };
+  const toggleIsraeli = (name) => {
+    const cur = sources.israeli_chefs||[];
+    onChange({...data,sources:{...sources,israeli_chefs:cur.includes(name)?cur.filter(x=>x!==name):[...cur,name]}});
+  };
+  const toggleIntl = (name) => {
+    const cur = sources.international_chefs||[];
+    onChange({...data,sources:{...sources,international_chefs:cur.includes(name)?cur.filter(x=>x!==name):[...cur,name]}});
+  };
+  const toggleSite = (id) => {
+    const cur = sources.hebrew_sites||[];
+    onChange({...data,sources:{...sources,hebrew_sites:cur.includes(id)?cur.filter(x=>x!==id):[...cur,id]}});
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="font-bold text-gray-700 mb-3">📱 רשתות חברתיות</div>
+        <div className="flex flex-wrap gap-2">
+          {["instagram","facebook","tiktok"].map(s=>{
+            const labels={instagram:"📸 אינסטגרם",facebook:"👍 פייסבוק",tiktok:"🎵 טיקטוק"};
+            const checked=(sources.social||[]).includes(s);
+            return <div key={s} className={`source-checkbox ${checked?"checked":""}`} onClick={()=>toggleSocial(s)}>
+              <input type="checkbox" readOnly checked={checked} className="w-4 h-4 accent-orange-600"/>
+              <span>{labels[s]}</span>
+            </div>;
+          })}
+        </div>
+      </div>
+      <div>
+        <div className="font-bold text-gray-700 mb-3">👨‍🍳 שפים ישראלים</div>
+        <div className="flex flex-wrap">
+          {(config.israeli_chefs||[]).map(c=>{
+            const sel=(sources.israeli_chefs||[]).includes(c.name);
+            return <span key={c.id} className={`chef-chip ${sel?"selected":""}`} onClick={()=>toggleIsraeli(c.name)}>{c.name}</span>;
+          })}
+        </div>
+      </div>
+      <div>
+        <div className="font-bold text-gray-700 mb-3">🌍 שפים בינלאומיים</div>
+        <div className="flex flex-wrap">
+          {(config.international_chefs||[]).map(c=>{
+            const sel=(sources.international_chefs||[]).includes(c.name);
+            return <span key={c.id} className={`chef-chip ${sel?"selected":""}`} onClick={()=>toggleIntl(c.name)}>{c.name}</span>;
+          })}
+        </div>
+      </div>
+      <div>
+        <div className="font-bold text-gray-700 mb-3">🌐 אתרים בעברית</div>
+        <div className="flex flex-wrap gap-2">
+          {(config.hebrew_sites||[]).map(s=>{
+            const checked=(sources.hebrew_sites||[]).includes(s.id);
+            return <div key={s.id} className={`source-checkbox ${checked?"checked":""}`} onClick={()=>toggleSite(s.id)}>
+              <input type="checkbox" readOnly checked={checked} className="w-4 h-4 accent-orange-600"/>
+              <span>{s.name}</span>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── STEP 4: Courses ────────────────────────────────────────────────
+function Step4({data, onChange}) {
+  const {selectedCourses} = data;
+  const toggle = (course) => {
+    const exists = selectedCourses.find(c=>c.id===course.id);
+    if(exists) onChange({...data,selectedCourses:selectedCourses.filter(c=>c.id!==course.id)});
+    else onChange({...data,selectedCourses:[...selectedCourses,{...course,n_options:3}]});
+  };
+  const setOptions = (id, n) => {
+    onChange({...data,selectedCourses:selectedCourses.map(c=>c.id===id?{...c,n_options:n}:c)});
+  };
+  return (
+    <div className="space-y-4">
+      <div className="text-sm text-gray-500 mb-2">לחץ על סוגי המנות שתרצה לכלול בארוחה:</div>
+      {COURSE_TYPES.map(course=>{
+        const sel = selectedCourses.find(c=>c.id===course.id);
+        return (
+          <div key={course.id} className={`option-card ${sel?"selected":""}`} onClick={()=>toggle(course)}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{course.emoji}</span>
+                <span className="font-bold text-gray-800">{course.name}</span>
+              </div>
+              {sel && (
+                <div className="flex items-center gap-2" onClick={e=>e.stopPropagation()}>
+                  <span className="text-sm text-gray-500">אופציות:</span>
+                  {[2,3,4].map(n=>(
+                    <button key={n} className={`num-btn ${sel.n_options===n?"bg-orange-600 text-white":""}`}
+                      onClick={()=>setOptions(course.id,n)}>{n}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── STEP 5: Recipe Options ──────────────────────────────────────────
+function Step5({recipes, selectedRecipes, onSelect, selectedCourses, loading}) {
+  if(loading) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-4">
+      <div className="spinner"/>
+      <div className="text-gray-600 font-medium">🤖 מחפש מתכונים מותאמים...</div>
+      <div className="text-sm text-gray-400">זה עשוי לקחת כ-30 שניות</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-10">
+      {selectedCourses.map(course=>{
+        const options = recipes[course.id] || [];
+        const chosen = selectedRecipes[course.id];
+        return (
+          <div key={course.id}>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span>{course.emoji}</span>{course.name}
+              {chosen && <span className="text-sm text-green-600 font-normal bg-green-50 px-3 py-1 rounded-full">✓ נבחר: {chosen.name}</span>}
+            </h3>
+            {options.length===0 && <div className="text-gray-400 text-sm bg-gray-50 rounded-xl p-4">לא נמצאו מתכונים לקטגוריה זו</div>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {options.map((r,i)=>{
+                const isSel = chosen && chosen.name===r.name;
+                return (
+                  <div key={i} className={`recipe-card ${isSel?"selected":""}`} onClick={()=>onSelect(course.id,course.name,course.emoji,r)}>
+                    {isSel && <div className="check">✓</div>}
+                    <div className="font-bold text-gray-900 text-lg mb-1">{r.name}</div>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {r.chef_or_source && <span className="tag">👨‍🍳 {r.chef_or_source}</span>}
+                      {r.prep_time && <span className="tag">⏱ {r.prep_time}</span>}
+                      {r.cost_per_person && <span className="tag">💰 ₪{r.cost_per_person} למנה</span>}
+                      {r.difficulty && <span className="tag">{r.difficulty}</span>}
+                    </div>
+                    <p className="text-gray-600 text-sm mb-2">{r.short_description}</p>
+                    {r.main_ingredients && <div className="text-xs text-gray-400">מרכיבים: {r.main_ingredients.join(", ")}</div>}
+                    {r.source_url && <a href={r.source_url} target="_blank" rel="noopener" className="text-xs text-orange-500 hover:underline mt-1 block" onClick={e=>e.stopPropagation()}>← למתכון המלא</a>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── STEP 6: Summary ────────────────────────────────────────────────
+function Step6({selectedRecipes, selectedCourses, ingredients}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-bold text-gray-800 mb-4">🍽️ תפריט הארוחה</h3>
+        {selectedCourses.map(course=>{
+          const r = selectedRecipes[course.id];
+          if(!r) return null;
+          return (
+            <div key={course.id} className="flex items-start gap-3 py-3 border-b border-gray-100">
+              <span className="text-2xl">{course.emoji}</span>
+              <div>
+                <div className="font-bold text-gray-800">{course.name}</div>
+                <div className="text-gray-600">{r.name}</div>
+                {r.chef_or_source && <div className="text-sm text-orange-500">{r.chef_or_source}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div>
+        <h3 className="text-xl font-bold text-gray-800 mb-4">🛒 רשימת קנייה</h3>
+        {(ingredients||[]).map((cat,i)=>(
+          <div key={i} className="ingredient-cat">
+            <div className="font-bold text-gray-700 mb-2">{cat.emoji} {cat.category}</div>
+            <ul className="space-y-1">
+              {cat.items.map((item,j)=>(
+                <li key={j} className="text-sm text-gray-600 flex justify-between">
+                  <span>• {item.name}</span>
+                  <span className="text-gray-400">{item.quantity} {item.unit}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── STEP 7: Send ────────────────────────────────────────────────────
+function Step7({sendData, onChange, onSend, sending, sentResult}) {
+  return (
+    <div className="space-y-6">
+      <div className={`source-checkbox ${sendData.send_email?"checked":""}`} onClick={()=>onChange({...sendData,send_email:!sendData.send_email})}>
+        <input type="checkbox" readOnly checked={sendData.send_email} className="w-5 h-5 accent-orange-600"/>
+        <span className="font-bold">📧 שלח למייל</span>
+      </div>
+      {sendData.send_email && (
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="text-sm text-gray-500">כתובות ברירת מחדל: vet_batyam@yahoo.com, vetrinarbatyam@gmail.com</div>
+          <input placeholder="כתובת מייל אחרת (אופציונלי)" value={sendData.custom_email||""}
+            onChange={e=>onChange({...sendData,custom_email:e.target.value})}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
+        </div>
+      )}
+
+      <div className={`source-checkbox ${sendData.send_whatsapp?"checked":""}`} onClick={()=>onChange({...sendData,send_whatsapp:!sendData.send_whatsapp})}>
+        <input type="checkbox" readOnly checked={sendData.send_whatsapp} className="w-5 h-5 accent-orange-600"/>
+        <span className="font-bold">📱 שלח ל-WhatsApp</span>
+      </div>
+      {sendData.send_whatsapp && (
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+          <div className="text-sm text-gray-500">ברירת מחדל: מספרך (0543123419)</div>
+          <input placeholder="מספר אחר (אופציונלי, ללא קידומת +972)" value={sendData.custom_phone||""}
+            onChange={e=>onChange({...sendData,custom_phone:e.target.value})}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
+          <input placeholder="שם הנמען (אופציונלי)" value={sendData.recipient_name||""}
+            onChange={e=>onChange({...sendData,recipient_name:e.target.value})}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400"/>
+        </div>
+      )}
+
+      <div className={`source-checkbox ${sendData.generate_pdf?"checked":""}`} onClick={()=>onChange({...sendData,generate_pdf:!sendData.generate_pdf})}>
+        <input type="checkbox" readOnly checked={sendData.generate_pdf} className="w-5 h-5 accent-orange-600"/>
+        <span className="font-bold">📄 הורד PDF</span>
+      </div>
+
+      {sentResult && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <div className="font-bold text-green-700 mb-1">✅ נשלח בהצלחה!</div>
+          <pre className="text-xs text-green-600 whitespace-pre-wrap">{JSON.stringify(sentResult,null,2)}</pre>
+        </div>
+      )}
+
+      <button className="btn-primary w-full text-lg" onClick={onSend} disabled={sending}>
+        {sending ? "שולח..." : "🚀 שלח עכשיו"}
+      </button>
+    </div>
+  );
+}
+
+// ─── MAIN APP ────────────────────────────────────────────────────────
+function App() {
+  const [step, setStep] = useState(0);
+  const [config, setConfig] = useState({});
+  const [basics, setBasics] = useState({participants:6, style:"shabbat", difficulty:"medium"});
+  const [budgetData, setBudgetData] = useState({budget:"medium"});
+  const [sourcesData, setSourcesData] = useState({sources:{social:[],israeli_chefs:[],international_chefs:[],hebrew_sites:[]}});
+  const [coursesData, setCoursesData] = useState({selectedCourses:[]});
+  const [recipes, setRecipes] = useState({});
+  const [selectedRecipes, setSelectedRecipes] = useState({});
+  const [ingredients, setIngredients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [sendData, setSendData] = useState({send_email:false,send_whatsapp:false,generate_pdf:false});
+  const [sending, setSending] = useState(false);
+  const [sentResult, setSentResult] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(()=>{
+    fetch(`${API}/api/config`).then(r=>r.json()).then(setConfig).catch(()=>{});
+  },[]);
+
+  const canNext = () => {
+    if(step===0) return basics.style && basics.difficulty;
+    if(step===1) return !!budgetData.budget;
+    if(step===2) {
+      const s = sourcesData.sources;
+      return (s.social||[]).length>0 || (s.israeli_chefs||[]).length>0 || (s.international_chefs||[]).length>0 || (s.hebrew_sites||[]).length>0;
+    }
+    if(step===3) return coursesData.selectedCourses.length>0;
+    if(step===4) return coursesData.selectedCourses.every(c=>selectedRecipes[c.id]);
+    return true;
+  };
+
+  const next = async () => {
+    if(step===3) {
+      setStep(4);
+      setLoading(true);
+      try {
+        const body = {
+          participants: basics.participants,
+          style: basics.style,
+          difficulty: basics.difficulty,
+          budget: budgetData.budget,
+          occasion: basics.style,
+          sources: sourcesData.sources,
+          courses: coursesData.selectedCourses.map(c=>({
+            course_type: c.id, course_name: c.name, n_options: c.n_options||3
+          })),
+        };
+        const res = await fetch(`${API}/api/search-recipes`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const data = await res.json();
+        setRecipes(data.results||{});
+      } catch(e){ setError("שגיאה בחיפוש מתכונים: "+e.message); }
+      finally{ setLoading(false); }
+      return;
+    }
+    if(step===4) {
+      setStep(5);
+      try {
+        const selected = coursesData.selectedCourses.map(c=>({
+          course_type: c.id, course_name: c.name, emoji: c.emoji,
+          recipe: selectedRecipes[c.id]||{}
+        }));
+        const body = {participants:basics.participants, style:basics.style, occasion:basics.style, selected};
+        const res = await fetch(`${API}/api/compile-meal`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+        const data = await res.json();
+        setIngredients(data.ingredients||[]);
+      } catch(e){ setError("שגיאה בהרכבת הארוחה"); }
+      return;
+    }
+    setStep(s=>s+1);
+  };
+
+  const selectRecipe = (courseId, courseName, emoji, recipe) => {
+    setSelectedRecipes(prev=>({...prev,[courseId]:recipe}));
+  };
+
+  const handleSend = async () => {
+    setSending(true);
+    setSentResult(null);
+    try {
+      const selected = coursesData.selectedCourses.map(c=>({
+        course_type: c.id, course_name: c.name, emoji: c.emoji,
+        recipe: selectedRecipes[c.id]||{}
+      }));
+      const compileData = {participants:basics.participants, style:basics.style, occasion:basics.style, selected};
+
+      if(sendData.generate_pdf) {
+        const res = await fetch(`${API}/api/generate-pdf`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(compileData)});
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href=url; a.download="dinner-plan.pdf"; a.click();
+      }
+
+      const emailList = sendData.custom_email ? [sendData.custom_email] : [];
+      const body = {
+        compile_data: compileData,
+        send_email: sendData.send_email,
+        email_to: emailList,
+        send_whatsapp: sendData.send_whatsapp,
+        whatsapp_phone: sendData.custom_phone||"",
+        whatsapp_name: sendData.recipient_name||"",
+        generate_pdf: false,
+      };
+      const res = await fetch(`${API}/api/send`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const result = await res.json();
+      setSentResult(result);
+    } catch(e){ setError("שגיאה בשליחה: "+e.message); }
+    finally{ setSending(false); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-start justify-center py-8 px-4">
+      <div className="card w-full max-w-3xl p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-black text-gray-900">🍽️ מתכנן ארוחת ערב</h1>
+          <p className="text-gray-500 mt-2">בנה את הארוחה המושלמת שלך</p>
+        </div>
+
+        <ProgressBar step={step}/>
+
+        {error && <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-red-700 text-sm">{error} <button className="underline mr-2" onClick={()=>setError("")}>סגור</button></div>}
+
+        <div className="min-h-64">
+          {step===0 && <Step1 data={basics} onChange={setBasics}/>}
+          {step===1 && <Step2 data={budgetData} onChange={setBudgetData} participants={basics.participants}/>}
+          {step===2 && <Step3 data={sourcesData} onChange={setSourcesData} config={config}/>}
+          {step===3 && <Step4 data={coursesData} onChange={setCoursesData}/>}
+          {step===4 && <Step5 recipes={recipes} selectedRecipes={selectedRecipes} onSelect={selectRecipe} selectedCourses={coursesData.selectedCourses} loading={loading}/>}
+          {step===5 && <Step6 selectedRecipes={selectedRecipes} selectedCourses={coursesData.selectedCourses} ingredients={ingredients}/>}
+          {step===6 && <Step7 sendData={sendData} onChange={setSendData} onSend={handleSend} sending={sending} sentResult={sentResult}/>}
+        </div>
+
+        <div className="flex justify-between mt-10 pt-6 border-t border-gray-100">
+          <button className="btn-secondary" onClick={()=>setStep(s=>s-1)} disabled={step===0}>→ חזור</button>
+          {step<6
+            ? <button className="btn-primary" onClick={next} disabled={!canNext()}>{step===3?"🔍 חפש מתכונים":step===4?"✅ אשר תפריט":"הבא ←"}</button>
+            : null
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
